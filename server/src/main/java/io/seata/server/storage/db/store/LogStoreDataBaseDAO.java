@@ -91,10 +91,13 @@ public class LogStoreDataBaseDAO implements LogStore {
      */
     public LogStoreDataBaseDAO(DataSource logStoreDataSource) {
         this.logStoreDataSource = logStoreDataSource;
+        //全局表名称
         globalTable = CONFIG.getConfig(ConfigurationKeys.STORE_DB_GLOBAL_TABLE,
             DEFAULT_STORE_DB_GLOBAL_TABLE);
+        //分支表名称
         branchTable = CONFIG.getConfig(ConfigurationKeys.STORE_DB_BRANCH_TABLE,
             DEFAULT_STORE_DB_BRANCH_TABLE);
+        //数据库类型
         dbType = CONFIG.getConfig(ConfigurationKeys.STORE_DB_TYPE);
         if (StringUtils.isBlank(dbType)) {
             throw new StoreException("there must be db type.");
@@ -103,6 +106,7 @@ public class LogStoreDataBaseDAO implements LogStore {
             throw new StoreException("there must be logStoreDataSource.");
         }
         // init transaction_name size
+        //事务名称的最大长度
         initTransactionNameSize();
     }
 

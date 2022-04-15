@@ -46,6 +46,7 @@ public class DataBaseLocker extends AbstractLocker {
      * @param logStoreDataSource the log store data source
      */
     public DataBaseLocker(DataSource logStoreDataSource) {
+        //创建lockStore，用于数据库操作
         lockStore = new LockStoreDataBaseDAO(logStoreDataSource);
     }
 
@@ -56,6 +57,7 @@ public class DataBaseLocker extends AbstractLocker {
             return true;
         }
         try {
+            //从数据库中获取全局锁
             return lockStore.acquireLock(convertToLockDO(locks));
         } catch (StoreException e) {
             throw e;

@@ -29,6 +29,7 @@ public class DubboRemotingParser extends AbstractedRemotingParser {
 
     @Override
     public boolean isReference(Object bean, String beanName) throws FrameworkException {
+        //判断是否为ReferenceBean
         Class<?> c = bean.getClass();
         return "com.alibaba.dubbo.config.spring.ReferenceBean".equals(c.getName())
             || "org.apache.dubbo.config.spring.ReferenceBean".equals(c.getName());
@@ -36,6 +37,7 @@ public class DubboRemotingParser extends AbstractedRemotingParser {
 
     @Override
     public boolean isService(Object bean, String beanName) throws FrameworkException {
+        //判断类是否为ServiceBean
         Class<?> c = bean.getClass();
         return "com.alibaba.dubbo.config.spring.ServiceBean".equals(c.getName())
             || "org.apache.dubbo.config.spring.ServiceBean".equals(c.getName());

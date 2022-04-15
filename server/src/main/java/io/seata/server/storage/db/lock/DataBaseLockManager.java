@@ -50,6 +50,7 @@ public class DataBaseLockManager extends AbstractLockManager implements Initiali
         // init dataSource
         String datasourceType = ConfigurationFactory.getInstance().getConfig(ConfigurationKeys.STORE_DB_DATASOURCE_TYPE);
         DataSource lockStoreDataSource = EnhancedServiceLoader.load(DataSourceProvider.class, datasourceType).provide();
+        //创建DataBaseLocker
         locker = new DataBaseLocker(lockStoreDataSource);
     }
 

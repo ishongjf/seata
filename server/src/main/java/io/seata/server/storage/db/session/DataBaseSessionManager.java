@@ -94,6 +94,7 @@ public class DataBaseSessionManager extends AbstractSessionManager
 
     @Override
     public void updateGlobalSessionStatus(GlobalSession session, GlobalStatus status) throws TransactionException {
+        //判断任务是否为空，这个是保证在多个监听器下，只执行RootSessionManager一个
         if (StringUtils.isNotBlank(taskName)) {
             return;
         }

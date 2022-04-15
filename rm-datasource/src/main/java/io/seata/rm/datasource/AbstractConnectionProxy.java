@@ -104,9 +104,12 @@ public abstract class AbstractConnectionProxy implements Connection {
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
+        //获取数据库类型
         String dbType = getDbType();
         // support oracle 10.2+
         PreparedStatement targetPreparedStatement = null;
+        //AT模式下解析sql树，判断是否是insert类型sql，是的话，增加主键字段创建PreparedStatement
+        //RootContext中默认AT模式
         if (BranchType.AT == RootContext.getBranchType()) {
             List<SQLRecognizer> sqlRecognizers = SQLVisitorFactory.get(sql, dbType);
             if (sqlRecognizers != null && sqlRecognizers.size() == 1) {
@@ -123,6 +126,7 @@ public abstract class AbstractConnectionProxy implements Connection {
         if (targetPreparedStatement == null) {
             targetPreparedStatement = getTargetConnection().prepareStatement(sql);
         }
+        //代理PreparedStatement
         return new PreparedStatementProxy(this, targetPreparedStatement, sql);
     }
 

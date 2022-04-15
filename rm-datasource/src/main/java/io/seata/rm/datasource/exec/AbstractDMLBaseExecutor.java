@@ -77,6 +77,7 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
 
     @Override
     public T doExecute(Object... args) throws Throwable {
+        //获取connection代理，AutoCommit不设置的话，在mybatis中是默认为true的
         AbstractConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
         if (connectionProxy.getAutoCommit()) {
             return executeAutoCommitTrue(args);
@@ -93,12 +94,17 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
      * @throws Exception the exception
      */
     protected T executeAutoCommitFalse(Object[] args) throws Exception {
+        //mysql时，拒绝表拥有多主键
         if (!JdbcConstants.MYSQL.equalsIgnoreCase(getDbType()) && isMultiPk()) {
             throw new NotSupportYetException("multi pk only support mysql!");
         }
+        //生成前置快照
         TableRecords beforeImage = beforeImage();
+        //执行sql
         T result = statementCallback.execute(statementProxy.getTargetStatement(), args);
+        //生成后置快照
         TableRecords afterImage = afterImage(beforeImage);
+        //解析生成undoLog和全局锁
         prepareUndoLog(beforeImage, afterImage);
         return result;
     }
@@ -135,9 +141,12 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
     protected T executeAutoCommitTrue(Object[] args) throws Throwable {
         ConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
         try {
+            //修改AutoCommit为false
             connectionProxy.changeAutoCommit();
             return new LockRetryPolicy(connectionProxy).execute(() -> {
+                //生成前置快照、后置快照、执行具体sql
                 T result = executeAutoCommitFalse(args);
+                //先从seata中申请到全局锁，然后提交事务
                 connectionProxy.commit();
                 return result;
             });
@@ -180,6 +189,7 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
 
         @Override
         public <T> T execute(Callable<T> callable) throws Exception {
+            //判断全局锁冲突时，是否重试，默认true
             if (LOCK_RETRY_POLICY_BRANCH_ROLLBACK_ON_CONFLICT) {
                 return doRetryOnLockConflict(callable);
             } else {

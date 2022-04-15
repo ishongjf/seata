@@ -68,6 +68,7 @@ public final class RmNettyRemotingClient extends AbstractNettyRemotingClient {
     @Override
     public void init() {
         // registry processor
+        //注册RemotingProcessor
         registerProcessor();
         if (initialized.compareAndSet(false, true)) {
             super.init();
@@ -106,6 +107,7 @@ public final class RmNettyRemotingClient extends AbstractNettyRemotingClient {
      * @return the instance
      */
     public static RmNettyRemotingClient getInstance() {
+        //跟TM一样单例模式，获取RmNettyRemotingClient
         if (instance == null) {
             synchronized (RmNettyRemotingClient.class) {
                 if (instance == null) {

@@ -61,17 +61,20 @@ public class ActionInterceptorHandler {
 
         //TCC name
         String actionName = businessAction.name();
+        //BusinessActionContext保存了事务的基本信息
         BusinessActionContext actionContext = new BusinessActionContext();
         actionContext.setXid(xid);
         //set action name
         actionContext.setActionName(actionName);
 
         //Creating Branch Record
+        //注册分支事务
         String branchId = doTccActionLogStore(method, arguments, businessAction, actionContext);
         actionContext.setBranchId(branchId);
         //MDC put branchId
         MDC.put(RootContext.MDC_KEY_BRANCH_ID, branchId);
 
+        //如果方法中的参数有BusinessActionContext，则为BusinessActionContext赋值当前的
         //set the parameter whose type is BusinessActionContext
         Class<?>[] types = method.getParameterTypes();
         int argIndex = 0;
@@ -83,8 +86,10 @@ public class ActionInterceptorHandler {
             argIndex++;
         }
         //the final parameters of the try method
+        //记录当前方法的参数
         ret.put(Constants.TCC_METHOD_ARGUMENTS, arguments);
         //the final result
+        //记录当前方法的返回值
         ret.put(Constants.TCC_METHOD_RESULT, targetCallback.execute());
         return ret;
     }
@@ -102,14 +107,18 @@ public class ActionInterceptorHandler {
                                          BusinessActionContext actionContext) {
         String actionName = actionContext.getActionName();
         String xid = actionContext.getXid();
-        //
+        //解析tcc事务的参数传递，即解析@BusinessActionContextParameter注解
         Map<String, Object> context = fetchActionRequestContext(method, arguments);
+        //记录事务的开始时间
         context.put(Constants.ACTION_START_TIME, System.currentTimeMillis());
 
         //init business context
+        //初始化业务上下文，在map中记录prepare、commit、rollback、actionName的名称
         initBusinessContext(context, method, businessAction);
         //Init running environment context
+        //记录ip地址
         initFrameworkContext(context);
+        //将map保存到BusinessActionContext的actionContext
         actionContext.setActionContext(context);
 
         //init applicationData
@@ -118,6 +127,7 @@ public class ActionInterceptorHandler {
         String applicationContextStr = JSON.toJSONString(applicationContext);
         try {
             //registry branch record
+            //注册分支事务
             Long branchId = DefaultResourceManager.get().branchRegister(BranchType.TCC, actionName, null, xid,
                 applicationContextStr, null);
             return String.valueOf(branchId);
@@ -171,7 +181,7 @@ public class ActionInterceptorHandler {
      */
     protected Map<String, Object> fetchActionRequestContext(Method method, Object[] arguments) {
         Map<String, Object> context = new HashMap<>(8);
-
+        //解析参数中的@BusinessActionContextParameter
         Annotation[][] parameterAnnotations = method.getParameterAnnotations();
         for (int i = 0; i < parameterAnnotations.length; i++) {
             for (int j = 0; j < parameterAnnotations[i].length; j++) {
@@ -186,6 +196,7 @@ public class ActionInterceptorHandler {
                     if (index >= 0) {
                         @SuppressWarnings("unchecked")
                         Object targetParam = ((List<Object>)paramObject).get(index);
+                        //如果是property，就解析类中的属性
                         if (param.isParamInProperty()) {
                             context.putAll(ActionContextUtil.fetchContextFromObject(targetParam));
                         } else {

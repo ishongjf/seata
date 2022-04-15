@@ -43,6 +43,7 @@ public class ATCore extends AbstractCore {
 
     @Override
     protected void branchSessionLock(GlobalSession globalSession, BranchSession branchSession) throws TransactionException {
+        //获取全局，只有AT模式下需要获取，其他模式直接为true
         if (!branchSession.lock()) {
             throw new BranchTransactionException(LockKeyConflict, String
                     .format("Global lock acquire failed xid = %s branchId = %s", globalSession.getXid(),

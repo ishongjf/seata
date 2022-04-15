@@ -74,10 +74,13 @@ public class TccActionInterceptor implements MethodInterceptor, ConfigurationCha
 
     @Override
     public Object invoke(final MethodInvocation invocation) throws Throwable {
+        //判断全局事务是否开启
         if (!RootContext.inGlobalTransaction() || disable || RootContext.inSagaBranch()) {
             //not in transaction
             return invocation.proceed();
         }
+        //从remotingDesc中获取到对应的接口方法和Tcc事务注解
+        //method为接口中的方法
         Method method = getActionInterfaceMethod(invocation);
         TwoPhaseBusinessAction businessAction = method.getAnnotation(TwoPhaseBusinessAction.class);
         //try method
@@ -91,8 +94,10 @@ public class TccActionInterceptor implements MethodInterceptor, ConfigurationCha
                 RootContext.bindBranchType(BranchType.TCC);
             }
             try {
+                //此次方法的参数
                 Object[] methodArgs = invocation.getArguments();
                 //Handler the TCC Aspect
+                //注册tcc事务和处理业务逻辑
                 Map<String, Object> ret = actionInterceptorHandler.proceed(method, methodArgs, xid, businessAction,
                         invocation::proceed);
                 //return the final result

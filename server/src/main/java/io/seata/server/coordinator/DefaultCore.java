@@ -53,6 +53,9 @@ public class DefaultCore implements Core {
 
     private EventBus eventBus = EventBusManager.get();
 
+    /**
+     * 存放各种事务类型的处理器
+     */
     private static Map<BranchType, AbstractCore> coreMap = new ConcurrentHashMap<>();
 
     /**
@@ -97,6 +100,7 @@ public class DefaultCore implements Core {
     @Override
     public Long branchRegister(BranchType branchType, String resourceId, String clientId, String xid,
                                String applicationData, String lockKeys) throws TransactionException {
+        //根据branchType获取到对应的Core，执行分支注册
         return getCore(branchType).branchRegister(branchType, resourceId, clientId, xid,
             applicationData, lockKeys);
     }
@@ -142,31 +146,39 @@ public class DefaultCore implements Core {
 
     @Override
     public GlobalStatus commit(String xid) throws TransactionException {
+        //查询global是否存在
         GlobalSession globalSession = SessionHolder.findGlobalSession(xid);
         if (globalSession == null) {
             return GlobalStatus.Finished;
         }
+        //添加RootSessionManager监听器
         globalSession.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
         // just lock changeStatus
 
         boolean shouldCommit = SessionHolder.lockAndExecute(globalSession, () -> {
             // Highlight: Firstly, close the session, then no more branch can be registered.
+            //设置globalSession的active=false并释放全局锁
             globalSession.closeAndClean();
             if (globalSession.getStatus() == GlobalStatus.Begin) {
+                //判断是否可以异步提交，AT模式或一阶段失败可以异步提交
                 if (globalSession.canBeCommittedAsync()) {
+                    //将globalSession加入异步提交中并修改状态为AsyncCommitting
                     globalSession.asyncCommit();
                     return false;
                 } else {
+                    //同步提交时由RootSessionManager更改globalSession的状态为Committing
                     globalSession.changeStatus(GlobalStatus.Committing);
                     return true;
                 }
             }
             return false;
         });
-
+        //是否同步提交
         if (shouldCommit) {
+            //同步提交调用doGlobalCommit进行事务提交
             boolean success = doGlobalCommit(globalSession, false);
             //If successful and all remaining branches can be committed asynchronously, do async commit.
+            //提交成功后，还有分支事务且能异步提交时，进行异步提交
             if (success && globalSession.hasBranch() && globalSession.canBeCommittedAsync()) {
                 globalSession.asyncCommit();
                 return GlobalStatus.Committed;
@@ -174,6 +186,7 @@ public class DefaultCore implements Core {
                 return globalSession.getStatus();
             }
         } else {
+            //返回globalSession的状态
             return globalSession.getStatus() == GlobalStatus.AsyncCommitting ? GlobalStatus.Committed : globalSession.getStatus();
         }
     }
@@ -189,6 +202,7 @@ public class DefaultCore implements Core {
         if (globalSession.isSaga()) {
             success = getCore(BranchType.SAGA).doGlobalCommit(globalSession, retrying);
         } else {
+            //遍历当前globalSession下的branchSession，全部提交成功返回null
             Boolean result = SessionHelper.forEach(globalSession.getSortedBranches(), branchSession -> {
                 // if not retrying, skip the canBeCommittedAsync branches
                 if (!retrying && branchSession.canBeCommittedAsync()) {
@@ -201,6 +215,7 @@ public class DefaultCore implements Core {
                     return CONTINUE;
                 }
                 try {
+                    //向RM发送BranchCommitRequest消息通知二阶段提交
                     BranchStatus branchStatus = getCore(branchSession.getBranchType()).branchCommit(globalSession, branchSession);
 
                     switch (branchStatus) {
@@ -218,6 +233,7 @@ public class DefaultCore implements Core {
                                 return false;
                             }
                         default:
+                            //失败时，加入重试提交中
                             if (!retrying) {
                                 globalSession.queueToRetryCommit();
                                 return false;
@@ -255,6 +271,7 @@ public class DefaultCore implements Core {
         }
         //If success and there is no branch, end the global transaction.
         if (success && globalSession.getBranchSessions().isEmpty()) {
+            //修改globalSession的状态为Committed，并且释放全局锁
             SessionHelper.endCommitted(globalSession);
 
             // committed event
@@ -269,24 +286,29 @@ public class DefaultCore implements Core {
 
     @Override
     public GlobalStatus rollback(String xid) throws TransactionException {
+        //查询globalSession
         GlobalSession globalSession = SessionHolder.findGlobalSession(xid);
         if (globalSession == null) {
             return GlobalStatus.Finished;
         }
+        //设置RootSessionManager
         globalSession.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
         // just lock changeStatus
         boolean shouldRollBack = SessionHolder.lockAndExecute(globalSession, () -> {
+            //关闭globalSession
             globalSession.close(); // Highlight: Firstly, close the session, then no more branch can be registered.
+            //globalSession为begin时，需要更新globalSession的状态为Rollbacking，表示事务正在回滚
             if (globalSession.getStatus() == GlobalStatus.Begin) {
                 globalSession.changeStatus(GlobalStatus.Rollbacking);
                 return true;
             }
             return false;
         });
+        //判断globalSession是否将状态改为rollback，false直接返回状态
         if (!shouldRollBack) {
             return globalSession.getStatus();
         }
-
+        //分支事务回滚
         doGlobalRollback(globalSession, false);
         return globalSession.getStatus();
     }
@@ -304,6 +326,7 @@ public class DefaultCore implements Core {
         if (globalSession.isSaga()) {
             success = getCore(BranchType.SAGA).doGlobalRollback(globalSession, retrying);
         } else {
+            //遍历分支事务进行回滚操作
             Boolean result = SessionHelper.forEach(globalSession.getReverseSortedBranches(), branchSession -> {
                 BranchStatus currentBranchStatus = branchSession.getStatus();
                 if (currentBranchStatus == BranchStatus.PhaseOne_Failed) {
@@ -311,18 +334,22 @@ public class DefaultCore implements Core {
                     return CONTINUE;
                 }
                 try {
+                    //向RM发送BranchRollbackRequest消息，通知分支事务进行回滚操作
                     BranchStatus branchStatus = branchRollback(globalSession, branchSession);
                     switch (branchStatus) {
+                        //分支事务回滚成功
                         case PhaseTwo_Rollbacked:
                             globalSession.removeBranch(branchSession);
                             LOGGER.info("Rollback branch transaction successfully, xid = {} branchId = {}", globalSession.getXid(), branchSession.getBranchId());
                             return CONTINUE;
+                        //分支事务回滚失败且不可重试
                         case PhaseTwo_RollbackFailed_Unretryable:
                             SessionHelper.endRollbackFailed(globalSession);
                             LOGGER.info("Rollback branch transaction fail and stop retry, xid = {} branchId = {}", globalSession.getXid(), branchSession.getBranchId());
                             return false;
                         default:
                             LOGGER.info("Rollback branch transaction fail and will retry, xid = {} branchId = {}", globalSession.getXid(), branchSession.getBranchId());
+                            //RM回滚失败，加入更改
                             if (!retrying) {
                                 globalSession.queueToRetryRollback();
                             }
@@ -339,6 +366,7 @@ public class DefaultCore implements Core {
                 }
             });
             // Return if the result is not null
+            //result不为空时，回滚失败
             if (result != null) {
                 return result;
             }
@@ -356,6 +384,7 @@ public class DefaultCore implements Core {
             }
         }
         if (success) {
+            //删除全局事务
             SessionHelper.endRollbacked(globalSession);
 
             // rollbacked event

@@ -107,10 +107,13 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
      * @return the instance
      */
     public static TmNettyRemotingClient getInstance() {
+        //单例获取TmNettyRemotingClient
         if (instance == null) {
             synchronized (TmNettyRemotingClient.class) {
                 if (instance == null) {
+                    //Netty配置信息
                     NettyClientConfig nettyClientConfig = new NettyClientConfig();
+                    //messageExecutor用于处理消息返回时是否异步处理消息
                     final ThreadPoolExecutor messageExecutor = new ThreadPoolExecutor(
                             nettyClientConfig.getClientWorkerThreads(), nettyClientConfig.getClientWorkerThreads(),
                             KEEP_ALIVE_TIME, TimeUnit.SECONDS,
@@ -118,6 +121,7 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
                             new NamedThreadFactory(nettyClientConfig.getTmDispatchThreadPrefix(),
                                     nettyClientConfig.getClientWorkerThreads()),
                             RejectedPolicies.runsOldestTaskPolicy());
+                    //创建TmNettyRemotingClient
                     instance = new TmNettyRemotingClient(nettyClientConfig, null, messageExecutor);
                 }
             }
@@ -172,8 +176,10 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
     @Override
     public void init() {
         // registry processor
+        //注册RemotingProcessor，向processorTable中添加RemotingProcessor
         registerProcessor();
         if (initialized.compareAndSet(false, true)) {
+            //调用父类的初始化方法
             super.init();
         }
     }
@@ -231,6 +237,7 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
         super.registerProcessor(MessageType.TYPE_GLOBAL_STATUS_RESULT, onResponseProcessor, null);
         super.registerProcessor(MessageType.TYPE_REG_CLT_RESULT, onResponseProcessor, null);
         // 2.registry heartbeat message processor
+        //心跳消息处理
         ClientHeartbeatProcessor clientHeartbeatProcessor = new ClientHeartbeatProcessor();
         super.registerProcessor(MessageType.TYPE_HEARTBEAT_MSG, clientHeartbeatProcessor, null);
     }

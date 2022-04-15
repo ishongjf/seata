@@ -51,6 +51,7 @@ public abstract class AbstractLocker implements Locker {
         if (CollectionUtils.isEmpty(locks)) {
             return lockDOs;
         }
+        //将RowLock转为LockDO，主要是RowKey的拼接，数据库^^^TableName^^^pk
         for (RowLock rowLock : locks) {
             LockDO lockDO = new LockDO();
             lockDO.setBranchId(rowLock.getBranchId());

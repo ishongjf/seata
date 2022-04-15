@@ -247,8 +247,10 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
                 }
                 interceptor = null;
                 //check TCC proxy
+                //校验是否为TCC模式
                 if (TCCBeanParserUtils.isTccAutoProxy(bean, beanName, applicationContext)) {
                     //TCC interceptor, proxy bean of sofa:reference/dubbo:reference, and LocalTCC
+                    //创建TCC拦截器
                     interceptor = new TccActionInterceptor(TCCBeanParserUtils.getRemotingDesc(beanName));
                     ConfigurationCache.addConfigListener(ConfigurationKeys.DISABLE_GLOBAL_TRANSACTION,
                         (ConfigurationChangeListener)interceptor);

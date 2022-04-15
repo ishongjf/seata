@@ -104,12 +104,14 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     @Override
     public T execute(Object... args) throws Throwable {
+        //获取xid绑定到ConnectionContext
         String xid = RootContext.getXID();
         if (xid != null) {
             statementProxy.getConnectionProxy().bind(xid);
         }
-
+        //设置是否有全局锁定，这个是@GlobalLock是才有
         statementProxy.getConnectionProxy().setGlobalLockRequire(RootContext.requireGlobalLock());
+        //执行doExecute
         return doExecute(args);
     }
 
@@ -269,6 +271,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         if (beforeImage.getRows().isEmpty() && afterImage.getRows().isEmpty()) {
             return;
         }
+        //前置快照和后置快照条数不一致时，说明中途数据被其他线程修改过，抛出异常
         if (SQLType.UPDATE == sqlRecognizer.getSQLType()) {
             if (beforeImage.getRows().size() != afterImage.getRows().size()) {
                 throw new ShouldNeverHappenException("Before image size is not equaled to after image size, probably because you updated the primary keys.");
@@ -277,8 +280,10 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         ConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
 
         TableRecords lockKeyRecords = sqlRecognizer.getSQLType() == SQLType.DELETE ? beforeImage : afterImage;
+        //生成全局锁，表名:主键
         String lockKeys = buildLockKey(lockKeyRecords);
         if (null != lockKeys) {
+            //将全局锁和undoLog绑定到ConnectionContext
             connectionProxy.appendLockKey(lockKeys);
 
             SQLUndoLog sqlUndoLog = buildUndoItem(beforeImage, afterImage);

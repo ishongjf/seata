@@ -103,6 +103,7 @@ public class LockStoreDataBaseDAO implements LockStore {
         ResultSet rs = null;
         Set<String> dbExistedRowKeys = new HashSet<>();
         boolean originalAutoCommit = true;
+        //去重
         if (lockDOs.size() > 1) {
             lockDOs = lockDOs.stream().filter(LambdaUtils.distinctByKey(LockDO::getRowKey)).collect(Collectors.toList());
         }
@@ -118,6 +119,7 @@ public class LockStoreDataBaseDAO implements LockStore {
             }
             boolean canLock = true;
             //query
+            //获取lock_table的select的sql语句，查询全局锁是否已经存在
             String checkLockSQL = LockStoreSqlFactory.getLogStoreSql(dbType).getCheckLockableSql(lockTable, sj.toString());
             ps = conn.prepareStatement(checkLockSQL);
             for (int i = 0; i < lockDOs.size(); i++) {
@@ -140,7 +142,7 @@ public class LockStoreDataBaseDAO implements LockStore {
                 }
                 dbExistedRowKeys.add(rs.getString(ServerTableColumnsName.LOCK_TABLE_ROW_KEY));
             }
-
+            //存在锁冲突，回滚
             if (!canLock) {
                 conn.rollback();
                 return false;
@@ -159,6 +161,7 @@ public class LockStoreDataBaseDAO implements LockStore {
             //lock
             if (unrepeatedLockDOs.size() == 1) {
                 LockDO lockDO = unrepeatedLockDOs.get(0);
+                //获取全局锁，失败时回滚
                 if (!doAcquireLock(conn, lockDO)) {
                     if (LOGGER.isInfoEnabled()) {
                         LOGGER.info("Global lock acquire failed, xid {} branchId {} pk {}", lockDO.getXid(), lockDO.getBranchId(), lockDO.getPk());
@@ -167,6 +170,7 @@ public class LockStoreDataBaseDAO implements LockStore {
                     return false;
                 }
             } else {
+                //获取全局锁，失败时回滚
                 if (!doAcquireLocks(conn, unrepeatedLockDOs)) {
                     if (LOGGER.isInfoEnabled()) {
                         LOGGER.info("Global lock batch acquire failed, xid {} branchId {} pks {}", unrepeatedLockDOs.get(0).getXid(),

@@ -73,6 +73,7 @@ public class ServerOnRequestProcessor implements RemotingProcessor {
 
     @Override
     public void process(ChannelHandlerContext ctx, RpcMessage rpcMessage) throws Exception {
+        //判断channel是否已经注册
         if (ChannelManager.isRegistered(ctx.channel())) {
             onRequestMessage(ctx, rpcMessage);
         } else {

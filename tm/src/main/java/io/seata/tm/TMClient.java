@@ -36,6 +36,7 @@ public class TMClient {
 
     /**
      * Init.
+     * TmNettyRemotingClient的初始化
      *
      * @param applicationId           the application id
      * @param transactionServiceGroup the transaction service group

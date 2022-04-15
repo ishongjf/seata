@@ -72,6 +72,7 @@ public class NettyClientBootstrap implements RemotingBootstrap {
         this.nettyClientConfig = nettyClientConfig;
         int selectorThreadSizeThreadSize = this.nettyClientConfig.getClientSelectorThreadSize();
         this.transactionRole = transactionRole;
+        //创建NioEventLoopGroup，默认一个线程
         this.eventLoopGroupWorker = new NioEventLoopGroup(selectorThreadSizeThreadSize,
             new NamedThreadFactory(getThreadPrefix(this.nettyClientConfig.getClientSelectorThreadPrefix()),
                 selectorThreadSizeThreadSize));
@@ -108,6 +109,7 @@ public class NettyClientBootstrap implements RemotingBootstrap {
                 new NamedThreadFactory(getThreadPrefix(nettyClientConfig.getClientWorkerThreadPrefix()),
                     nettyClientConfig.getClientWorkerThreads()));
         }
+        //bootstrap的配置
         this.bootstrap.group(this.eventLoopGroupWorker).channel(
             nettyClientConfig.getClientChannelClazz()).option(
             ChannelOption.TCP_NODELAY, true).option(ChannelOption.SO_KEEPALIVE, true).option(

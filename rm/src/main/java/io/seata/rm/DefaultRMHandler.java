@@ -65,6 +65,7 @@ public class DefaultRMHandler extends AbstractRMHandler {
     public BranchRollbackResponse handle(BranchRollbackRequest request) {
         MDC.put(RootContext.MDC_KEY_XID, request.getXid());
         MDC.put(RootContext.MDC_KEY_BRANCH_ID, String.valueOf(request.getBranchId()));
+        //根据事务模式获取RMHandler处理回滚请求
         return getRMHandler(request.getBranchType()).handle(request);
     }
 

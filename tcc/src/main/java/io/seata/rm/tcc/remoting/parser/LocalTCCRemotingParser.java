@@ -32,6 +32,7 @@ public class LocalTCCRemotingParser extends AbstractedRemotingParser {
 
     @Override
     public boolean isReference(Object bean, String beanName) {
+        //判断接口上是否有@LocalTCC注解
         Class<?> classType = bean.getClass();
         Set<Class<?>> interfaceClasses = ReflectionUtil.getInterfaces(classType);
         for (Class<?> interClass : interfaceClasses) {
@@ -44,6 +45,7 @@ public class LocalTCCRemotingParser extends AbstractedRemotingParser {
 
     @Override
     public boolean isService(Object bean, String beanName) {
+        //判断接口上是否有@LocalTCC注解
         Class<?> classType = bean.getClass();
         Set<Class<?>> interfaceClasses = ReflectionUtil.getInterfaces(classType);
         for (Class<?> interClass : interfaceClasses) {
@@ -59,6 +61,7 @@ public class LocalTCCRemotingParser extends AbstractedRemotingParser {
         if (!this.isRemoting(bean, beanName)) {
             return null;
         }
+        //RemotingDesc记录了接口类和当前bean
         RemotingDesc remotingDesc = new RemotingDesc();
         remotingDesc.setReference(true);
         remotingDesc.setProtocol(Protocols.IN_JVM);

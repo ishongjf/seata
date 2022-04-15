@@ -89,6 +89,7 @@ public class DefaultRemotingParser {
      */
     public RemotingParser isRemoting(Object bean, String beanName) {
         for (RemotingParser remotingParser : allRemotingParsers) {
+            //通过isReference方法和isService方法判断是否可用
             if (remotingParser.isRemoting(bean, beanName)) {
                 return remotingParser;
             }
@@ -161,10 +162,12 @@ public class DefaultRemotingParser {
      * @return remoting desc
      */
     public RemotingDesc parserRemotingServiceInfo(Object bean, String beanName, RemotingParser remotingParser) {
+        //解析RemotingDesc，RemotingDesc记录了接口和当前bean的信息
         RemotingDesc remotingBeanDesc = remotingParser.getServiceDesc(bean, beanName);
         if (remotingBeanDesc == null) {
             return null;
         }
+        //根据bean名称放入缓存
         remotingServiceMap.put(beanName, remotingBeanDesc);
 
         Class<?> interfaceClass = remotingBeanDesc.getInterfaceClass();
@@ -174,6 +177,7 @@ public class DefaultRemotingParser {
                 //service bean, registry resource
                 Object targetBean = remotingBeanDesc.getTargetBean();
                 for (Method m : methods) {
+                    //解析TCC的方法和commit、rollback
                     TwoPhaseBusinessAction twoPhaseBusinessAction = m.getAnnotation(TwoPhaseBusinessAction.class);
                     if (twoPhaseBusinessAction != null) {
                         TCCResource tccResource = new TCCResource();

@@ -106,6 +106,7 @@ public abstract class AbstractNettyRemoting implements Disposable {
     protected final List<RpcHook> rpcHooks = EnhancedServiceLoader.loadAll(RpcHook.class);
 
     public void init() {
+        //创建一个每3秒判断一次futures中的future是否过期的定时任务
         timerExecutor.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -267,11 +268,14 @@ public abstract class AbstractNettyRemoting implements Disposable {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(String.format("%s msgId:%s, body:%s", this, rpcMessage.getId(), rpcMessage.getBody()));
         }
+        //获取消息类型，判断是否是MessageTypeAware，根据MessageTypeAware的type调用不同的RemotingProcessor处理
         Object body = rpcMessage.getBody();
         if (body instanceof MessageTypeAware) {
             MessageTypeAware messageTypeAware = (MessageTypeAware) body;
+            //根据消息类型获取到Pair
             final Pair<RemotingProcessor, ExecutorService> pair = this.processorTable.get((int) messageTypeAware.getTypeCode());
             if (pair != null) {
+                //判断ExecutorService是否为null，不为null时，异步处理消息，null时直接交由RemotingProcessor处理
                 if (pair.getSecond() != null) {
                     try {
                         pair.getSecond().execute(() -> {

@@ -58,6 +58,7 @@ public class TCCResourceManager extends AbstractResourceManager {
     @Override
     public void registerResource(Resource resource) {
         TCCResource tccResource = (TCCResource)resource;
+        //将TccResource放入缓存，便于commit和rollback时执行
         tccResourceCache.put(tccResource.getResourceId(), tccResource);
         super.registerResource(tccResource);
     }
@@ -81,10 +82,12 @@ public class TCCResourceManager extends AbstractResourceManager {
     @Override
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId, String resourceId,
                                      String applicationData) throws TransactionException {
+        //根据resourceId获取TCCResource
         TCCResource tccResource = (TCCResource)tccResourceCache.get(resourceId);
         if (tccResource == null) {
             throw new ShouldNeverHappenException(String.format("TCC resource is not exist, resourceId: %s", resourceId));
         }
+        //通过TccResource获取到bean和要执行的commit方法
         Object targetTCCBean = tccResource.getTargetBean();
         Method commitMethod = tccResource.getCommitMethod();
         if (targetTCCBean == null || commitMethod == null) {
@@ -92,8 +95,10 @@ public class TCCResourceManager extends AbstractResourceManager {
         }
         try {
             //BusinessActionContext
+            //解析applicationData，获取businessActionContext
             BusinessActionContext businessActionContext = getBusinessActionContext(xid, branchId, resourceId,
                 applicationData);
+            //执行commit方法
             Object ret = commitMethod.invoke(targetTCCBean, businessActionContext);
             LOGGER.info("TCC resource commit result : {}, xid: {}, branchId: {}, resourceId: {}", ret, xid, branchId, resourceId);
             boolean result;
@@ -128,10 +133,12 @@ public class TCCResourceManager extends AbstractResourceManager {
     @Override
     public BranchStatus branchRollback(BranchType branchType, String xid, long branchId, String resourceId,
                                        String applicationData) throws TransactionException {
+        //从缓存中获取TccResource
         TCCResource tccResource = (TCCResource)tccResourceCache.get(resourceId);
         if (tccResource == null) {
             throw new ShouldNeverHappenException(String.format("TCC resource is not exist, resourceId: %s", resourceId));
         }
+        //从TccResource和rollback方法
         Object targetTCCBean = tccResource.getTargetBean();
         Method rollbackMethod = tccResource.getRollbackMethod();
         if (targetTCCBean == null || rollbackMethod == null) {
@@ -139,8 +146,10 @@ public class TCCResourceManager extends AbstractResourceManager {
         }
         try {
             //BusinessActionContext
+            //解析applicationData获得businessActionContext
             BusinessActionContext businessActionContext = getBusinessActionContext(xid, branchId, resourceId,
                 applicationData);
+            //执行rollback方法
             Object ret = rollbackMethod.invoke(targetTCCBean, businessActionContext);
             LOGGER.info("TCC resource rollback result : {}, xid: {}, branchId: {}, resourceId: {}", ret, xid, branchId, resourceId);
             boolean result;

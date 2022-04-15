@@ -122,6 +122,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
      */
     public boolean canBeCommittedAsync() {
         for (BranchSession branchSession : branchSessions) {
+            //判断分支事务是否为AT或分支事务一阶段执行失败
             if (!branchSession.canBeCommittedAsync()) {
                 return false;
             }
@@ -218,14 +219,17 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
     @Override
     public void end() throws TransactionException {
         // Clean locks first
+        //清空全局锁，存在AT模式的分支事务释放锁
         clean();
 
         for (SessionLifecycleListener lifecycleListener : lifecycleListeners) {
+            //删除全局事务
             lifecycleListener.onEnd(this);
         }
     }
 
     public void clean() throws TransactionException {
+        //判断当前globalSession的branchSession是否有AT模式，有则释放全局锁
         if (this.hasATBranch()) {
             if (!LockerManagerFactory.getLockManager().releaseGlobalSessionLock(this)) {
                 throw new TransactionException("UnLock globalSession error, xid = " + this.xid);
@@ -275,13 +279,16 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
         // do not unlock if global status in (Committing, CommitRetrying, AsyncCommitting),
         // because it's already unlocked in 'DefaultCore.commit()'
         if (status != Committing && status != CommitRetrying && status != AsyncCommitting) {
+            //释放全局锁
             if (!branchSession.unlock()) {
                 throw new TransactionException("Unlock branch lock failed, xid = " + this.xid + ", branchId = " + branchSession.getBranchId());
             }
         }
         for (SessionLifecycleListener lifecycleListener : lifecycleListeners) {
+            //删除分支事务
             lifecycleListener.onRemoveBranch(this, branchSession);
         }
+        //从branchSessions中移出branchSession
         remove(branchSession);
     }
 
@@ -676,8 +683,10 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
     }
 
     public void asyncCommit() throws TransactionException {
+        //添加异步监听器
         this.addSessionLifecycleListener(SessionHolder.getAsyncCommittingSessionManager());
         SessionHolder.getAsyncCommittingSessionManager().addGlobalSession(this);
+        //交由异步监听器修改globalSession的状态
         this.changeStatus(GlobalStatus.AsyncCommitting);
     }
 

@@ -127,6 +127,7 @@ public class SessionHolder {
             // unknown store
             throw new IllegalArgumentException("unknown store mode:" + mode);
         }
+        //重新处理残存事务信息，db模式下将直接删除事务信息
         reload(storeMode);
     }
 
@@ -142,6 +143,7 @@ public class SessionHolder {
 
         Collection<GlobalSession> allSessions = ROOT_SESSION_MANAGER.allSessions();
         if (CollectionUtils.isNotEmpty(allSessions)) {
+            //要删除的全局事务
             List<GlobalSession> removeGlobalSessions = new ArrayList<>();
             Iterator<GlobalSession> iterator = allSessions.iterator();
             while (iterator.hasNext()) {

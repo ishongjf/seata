@@ -86,6 +86,7 @@ public class NettyRemotingServer extends AbstractNettyRemotingServer {
 
     private void registerProcessor() {
         // 1. registry on request message processor
+        //分支注册、分支状态上报、事务开启、事务提交、锁、事务上报、事务回滚、事务状态
         ServerOnRequestProcessor onRequestProcessor =
             new ServerOnRequestProcessor(this, getHandler());
         super.registerProcessor(MessageType.TYPE_BRANCH_REGISTER, onRequestProcessor, messageExecutor);
@@ -98,17 +99,21 @@ public class NettyRemotingServer extends AbstractNettyRemotingServer {
         super.registerProcessor(MessageType.TYPE_GLOBAL_STATUS, onRequestProcessor, messageExecutor);
         super.registerProcessor(MessageType.TYPE_SEATA_MERGE, onRequestProcessor, messageExecutor);
         // 2. registry on response message processor
+        //分支提交和回滚消息处理器
         ServerOnResponseProcessor onResponseProcessor =
             new ServerOnResponseProcessor(getHandler(), getFutures());
         super.registerProcessor(MessageType.TYPE_BRANCH_COMMIT_RESULT, onResponseProcessor, messageExecutor);
         super.registerProcessor(MessageType.TYPE_BRANCH_ROLLBACK_RESULT, onResponseProcessor, messageExecutor);
         // 3. registry rm message processor
+        //rm注册处理器
         RegRmProcessor regRmProcessor = new RegRmProcessor(this);
         super.registerProcessor(MessageType.TYPE_REG_RM, regRmProcessor, messageExecutor);
         // 4. registry tm message processor
+        //tm注册处理器
         RegTmProcessor regTmProcessor = new RegTmProcessor(this);
         super.registerProcessor(MessageType.TYPE_REG_CLT, regTmProcessor, null);
         // 5. registry heartbeat message processor
+        //心跳消息处理器
         ServerHeartbeatProcessor heartbeatMessageProcessor = new ServerHeartbeatProcessor(this);
         super.registerProcessor(MessageType.TYPE_HEARTBEAT_MSG, heartbeatMessageProcessor, null);
     }

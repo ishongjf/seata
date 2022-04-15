@@ -116,11 +116,13 @@ public class SessionHelper {
      */
     public static void endRollbacked(GlobalSession globalSession) throws TransactionException {
         GlobalStatus currentStatus = globalSession.getStatus();
+        //更新全局事务状态
         if (isTimeoutGlobalStatus(currentStatus)) {
             globalSession.changeStatus(GlobalStatus.TimeoutRollbacked);
         } else {
             globalSession.changeStatus(GlobalStatus.Rollbacked);
         }
+        //删除全局事务
         globalSession.end();
     }
 

@@ -49,17 +49,23 @@ public final class ConfigurationFactory {
     }
 
     private static void load() {
+        //获取要解析的配置文件名称
+        //先获取jvm参数seata.config.name的配置
         String seataConfigName = System.getProperty(SYSTEM_PROPERTY_SEATA_CONFIG_NAME);
         if (seataConfigName == null) {
+            //jvm不存在时，获取系统参数SEATA_CONFIG_NAME
             seataConfigName = System.getenv(ENV_SEATA_CONFIG_NAME);
         }
         if (seataConfigName == null) {
+            //默认为registry
             seataConfigName = REGISTRY_CONF_DEFAULT;
         }
+        //获取环境区分
         String envValue = System.getProperty(ENV_PROPERTY_KEY);
         if (envValue == null) {
             envValue = System.getenv(ENV_SYSTEM_KEY);
         }
+        //创建一个registry.conf的Configuration
         Configuration configuration = (envValue == null) ? new FileConfiguration(seataConfigName,
                 false) : new FileConfiguration(seataConfigName + "-" + envValue, false);
         Configuration extConfiguration = null;
@@ -99,6 +105,7 @@ public final class ConfigurationFactory {
     }
 
     private static Configuration buildConfiguration() {
+        //获取注册中心的类型
         String configTypeName = CURRENT_FILE_INSTANCE.getConfig(
                 ConfigurationKeys.FILE_ROOT_CONFIG + ConfigurationKeys.FILE_CONFIG_SPLIT_CHAR
                         + ConfigurationKeys.FILE_ROOT_TYPE);
@@ -110,6 +117,7 @@ public final class ConfigurationFactory {
 
         Configuration extConfiguration = null;
         Configuration configuration;
+        //判断是否为file，不为file时则获取对应配置中心的configuration
         if (ConfigType.File == configType) {
             String pathDataId = String.join(ConfigurationKeys.FILE_CONFIG_SPLIT_CHAR,
                     ConfigurationKeys.FILE_ROOT_CONFIG, FILE_TYPE, NAME_KEY);
@@ -131,6 +139,7 @@ public final class ConfigurationFactory {
                     .load(ConfigurationProvider.class, Objects.requireNonNull(configType).name()).provide();
         }
         try {
+            //给config做个代理类，主要完成了缓存和获取配置的类型转换
             Configuration configurationCache;
             if (null != extConfiguration) {
                 configurationCache = ConfigurationCache.getInstance().proxy(extConfiguration);

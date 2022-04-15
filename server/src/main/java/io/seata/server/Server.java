@@ -48,6 +48,7 @@ public class Server {
      */
     public static void main(String[] args) throws IOException {
         // get port first, use to logback.xml
+        //获取端口，判断当前是否在容器中运行
         int port = PortHelper.getPort(args);
         System.setProperty(ConfigurationKeys.SERVER_PORT, Integer.toString(port));
 
@@ -60,9 +61,11 @@ public class Server {
         //initialize the parameter parser
         //Note that the parameter parser should always be the first line to execute.
         //Because, here we need to parse the parameters needed for startup.
+        //获取配置信息，解析registry.conf中的config配置，并根据结果，从file或其他配置中心获取配置
         ParameterParser parameterParser = new ParameterParser(args);
 
         //initialize the metrics
+        //初始化指标监控
         MetricsManager.get().init();
 
         System.setProperty(ConfigurationKeys.STORE_MODE, parameterParser.getStoreMode());
@@ -71,14 +74,14 @@ public class Server {
                 NettyServerConfig.getMaxServerPoolSize(), NettyServerConfig.getKeepAliveTime(), TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(NettyServerConfig.getMaxTaskQueueSize()),
                 new NamedThreadFactory("ServerHandlerThread", NettyServerConfig.getMaxServerPoolSize()), new ThreadPoolExecutor.CallerRunsPolicy());
-
+        //NettyRemotingServer用于消息通信和消息处理
         NettyRemotingServer nettyRemotingServer = new NettyRemotingServer(workingThreads);
         //server port
         nettyRemotingServer.setListenPort(parameterParser.getPort());
         UUIDGenerator.init(parameterParser.getServerNode());
         //log store mode : file, db, redis
         SessionHolder.init(parameterParser.getStoreMode());
-
+        //事务协调者，用于事务的分发和处理
         DefaultCoordinator coordinator = new DefaultCoordinator(nettyRemotingServer);
         coordinator.init();
         nettyRemotingServer.setHandler(coordinator);

@@ -52,6 +52,7 @@ public abstract class AbstractNettyRemotingServer extends AbstractNettyRemoting 
     @Override
     public void init() {
         super.init();
+        //bootstrap的启动
         serverBootstrap.start();
     }
 

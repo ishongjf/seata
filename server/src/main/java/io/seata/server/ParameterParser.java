@@ -81,6 +81,7 @@ public class ParameterParser {
                 System.setProperty(ENV_PROPERTY_KEY, seataEnv);
             }
             if (StringUtils.isBlank(storeMode)) {
+                //获取Configuration实例，然后获取store.mode配置信息存储类型
                 storeMode = ConfigurationFactory.getInstance().getConfig(ConfigurationKeys.STORE_MODE,
                     SERVER_DEFAULT_STORE_MODE);
             }

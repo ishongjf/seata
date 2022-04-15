@@ -181,6 +181,7 @@ public abstract class AbstractTCInboundHandler extends AbstractExceptionHandler 
             public void execute(BranchRegisterRequest request, BranchRegisterResponse response)
                 throws TransactionException {
                 try {
+                    //执行分支注册
                     doBranchRegister(request, response, rpcContext);
                 } catch (StoreException e) {
                     throw new TransactionException(TransactionExceptionCode.FailedStore, String

@@ -66,17 +66,19 @@ public class ExecuteTemplate {
                                                      StatementProxy<S> statementProxy,
                                                      StatementCallback<T, S> statementCallback,
                                                      Object... args) throws SQLException {
+        //没有@GlobalLock，并且不是AT模式，调用原有的PreparedStatement
         if (!RootContext.requireGlobalLock() && BranchType.AT != RootContext.getBranchType()) {
             // Just work as original statement
             return statementCallback.execute(statementProxy.getTargetStatement(), args);
         }
-
+        //获取数据库类型，并解析sql语法
         String dbType = statementProxy.getConnectionProxy().getDbType();
         if (CollectionUtils.isEmpty(sqlRecognizers)) {
             sqlRecognizers = SQLVisitorFactory.get(
                     statementProxy.getTargetSQL(),
                     dbType);
         }
+        //根据sql的类型，生成不同类型的Executor，最后执行execute方法
         Executor<T> executor;
         if (CollectionUtils.isEmpty(sqlRecognizers)) {
             executor = new PlainExecutor<>(statementProxy, statementCallback);
@@ -108,6 +110,7 @@ public class ExecuteTemplate {
         }
         T rs;
         try {
+            //执行execute
             rs = executor.execute(args);
         } catch (Throwable ex) {
             if (!(ex instanceof SQLException)) {

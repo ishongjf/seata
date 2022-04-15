@@ -114,11 +114,13 @@ public class DataSourceManager extends AbstractResourceManager {
     @Override
     public BranchStatus branchRollback(BranchType branchType, String xid, long branchId, String resourceId,
                                        String applicationData) throws TransactionException {
+        //获取数据库代理对象
         DataSourceProxy dataSourceProxy = get(resourceId);
         if (dataSourceProxy == null) {
             throw new ShouldNeverHappenException();
         }
         try {
+            //根据数据库的类型，获取对应的UndoLogManager处理器执行undo操作
             UndoLogManagerFactory.getUndoLogManager(dataSourceProxy.getDbType()).undo(dataSourceProxy, xid, branchId);
         } catch (TransactionException te) {
             StackTraceLogger.info(LOGGER, te,

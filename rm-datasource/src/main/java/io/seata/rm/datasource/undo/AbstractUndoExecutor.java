@@ -114,10 +114,12 @@ public abstract class AbstractUndoExecutor {
      * @throws SQLException the sql exception
      */
     public void executeOn(Connection conn) throws SQLException {
+        //校验当前数据是否和后置快照的数据一致，第一个条件为是否开启数据校验
         if (IS_UNDO_DATA_VALIDATION_ENABLE && !dataValidationAndGoOn(conn)) {
             return;
         }
         try {
+            //生成回滚的sql并执行
             String undoSQL = buildUndoSQL();
             PreparedStatement undoPST = conn.prepareStatement(undoSQL);
             TableRecords undoRows = getUndoRows();
@@ -228,6 +230,7 @@ public abstract class AbstractUndoExecutor {
 
         // Compare current data with before data
         // No need undo if the before data snapshot is equivalent to the after data snapshot.
+        //如果前后快照一致，则无需回滚
         Result<Boolean> beforeEqualsAfterResult = DataCompareUtils.isRecordsEquals(beforeRecords, afterRecords);
         if (beforeEqualsAfterResult.getResult()) {
             if (LOGGER.isInfoEnabled()) {
@@ -239,13 +242,16 @@ public abstract class AbstractUndoExecutor {
         }
 
         // Validate if data is dirty.
+        //查询当前的数据记录
         TableRecords currentRecords = queryCurrentRecords(conn);
         // compare with current data and after image.
+        //对比后置快照和当前数据，只有相等时才能回滚数据，不一致表示数据中间被修改了，抛异常
         Result<Boolean> afterEqualsCurrentResult = DataCompareUtils.isRecordsEquals(afterRecords, currentRecords);
         if (!afterEqualsCurrentResult.getResult()) {
 
             // If current data is not equivalent to the after data, then compare the current data with the before 
             // data, too. No need continue to undo if current data is equivalent to the before data snapshot
+            //对比前置快照和当前数据，一致则无需回滚
             Result<Boolean> beforeEqualsCurrentResult = DataCompareUtils.isRecordsEquals(beforeRecords, currentRecords);
             if (beforeEqualsCurrentResult.getResult()) {
                 if (LOGGER.isInfoEnabled()) {

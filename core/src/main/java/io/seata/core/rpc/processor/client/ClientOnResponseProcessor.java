@@ -90,10 +90,13 @@ public class ClientOnResponseProcessor implements RemotingProcessor {
 
     @Override
     public void process(ChannelHandlerContext ctx, RpcMessage rpcMessage) throws Exception {
+        //判断消息是否批量返回
         if (rpcMessage.getBody() instanceof MergeResultMessage) {
             MergeResultMessage results = (MergeResultMessage) rpcMessage.getBody();
+            //从mergeMsgMap中移出合并发送的消息，表示发送消息的已被处理
             MergedWarpMessage mergeMessage = (MergedWarpMessage) mergeMsgMap.remove(rpcMessage.getId());
             for (int i = 0; i < mergeMessage.msgs.size(); i++) {
+                //根据msgId从futures中获取messageFuture用于异步返回
                 int msgId = mergeMessage.msgIds.get(i);
                 MessageFuture future = futures.remove(msgId);
                 if (future == null) {
@@ -101,15 +104,18 @@ public class ClientOnResponseProcessor implements RemotingProcessor {
                         LOGGER.info("msg: {} is not found in futures.", msgId);
                     }
                 } else {
+                    //设置返回值
                     future.setResultMessage(results.getMsgs()[i]);
                 }
             }
         } else {
+            //非批量消息
             MessageFuture messageFuture = futures.remove(rpcMessage.getId());
             if (messageFuture != null) {
                 messageFuture.setResultMessage(rpcMessage.getBody());
             } else {
                 if (rpcMessage.getBody() instanceof AbstractResultMessage) {
+                    //transactionMessageHandler处理消息异常
                     if (transactionMessageHandler != null) {
                         transactionMessageHandler.onResponse((AbstractResultMessage) rpcMessage.getBody(), null);
                     }

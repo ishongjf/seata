@@ -185,6 +185,7 @@ public class ConnectionProxy extends AbstractConnectionProxy {
     public void commit() throws SQLException {
         try {
             LOCK_RETRY_POLICY.execute(() -> {
+                //申请全局锁和事务提交
                 doCommit();
                 return null;
             });
@@ -227,17 +228,22 @@ public class ConnectionProxy extends AbstractConnectionProxy {
 
     private void doCommit() throws SQLException {
         if (context.inGlobalTransaction()) {
+            //全局事务时，先申请全局锁，在提交事务
             processGlobalTransactionCommit();
         } else if (context.isGlobalLockRequire()) {
+            //@GlobalLock的时候，申请全局锁
             processLocalCommitWithGlobalLocks();
         } else {
+            //普通sql直接提交事务
             targetConnection.commit();
         }
     }
 
     private void processLocalCommitWithGlobalLocks() throws SQLException {
+        //申请全局锁
         checkLock(context.buildLockKeys());
         try {
+            //提交事务
             targetConnection.commit();
         } catch (Throwable ex) {
             throw new SQLException(ex);
@@ -247,21 +253,27 @@ public class ConnectionProxy extends AbstractConnectionProxy {
 
     private void processGlobalTransactionCommit() throws SQLException {
         try {
+            //申请全局锁
             register();
         } catch (TransactionException e) {
+            //为获取到全局锁时，根据code判断抛出LockConflictException或SQLException
             recognizeLockKeyConflictException(e, context.buildLockKeys());
         }
         try {
+            //执行undoLog保存
             UndoLogManagerFactory.getUndoLogManager(this.getDbType()).flushUndoLogs(this);
+            //提交事务
             targetConnection.commit();
         } catch (Throwable ex) {
             LOGGER.error("process connectionProxy commit error: {}", ex.getMessage(), ex);
             report(false);
             throw new SQLException(ex);
         }
+        //判断是否向seata上报事务执行成功，默认false
         if (IS_REPORT_SUCCESS_ENABLE) {
             report(true);
         }
+        //重置ConnectionContext
         context.reset();
     }
 
@@ -329,6 +341,7 @@ public class ConnectionProxy extends AbstractConnectionProxy {
             .getInstance().getBoolean(ConfigurationKeys.CLIENT_LOCK_RETRY_POLICY_BRANCH_ROLLBACK_ON_CONFLICT, DEFAULT_CLIENT_LOCK_RETRY_POLICY_BRANCH_ROLLBACK_ON_CONFLICT);
 
         public <T> T execute(Callable<T> callable) throws Exception {
+            //全局锁冲突时，是否重试等待的判断，默认true
             if (LOCK_RETRY_POLICY_BRANCH_ROLLBACK_ON_CONFLICT) {
                 return callable.call();
             } else {
@@ -341,8 +354,10 @@ public class ConnectionProxy extends AbstractConnectionProxy {
             while (true) {
                 try {
                     return callable.call();
+                //未获取到全局锁时，重试获取锁
                 } catch (LockConflictException lockConflict) {
                     onException(lockConflict);
+                    //根据重试次数和重试时间睡眠等待
                     lockRetryController.sleep(lockConflict);
                 } catch (Exception e) {
                     onException(e);

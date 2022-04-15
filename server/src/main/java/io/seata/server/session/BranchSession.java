@@ -275,6 +275,7 @@ public class BranchSession implements Lockable, Comparable<BranchSession>, Sessi
     @Override
     public boolean lock() throws TransactionException {
         if (this.getBranchType().equals(BranchType.AT)) {
+            //根据数据存储模式，获取全局锁
             return LockerManagerFactory.getLockManager().acquireLock(this);
         }
         return true;
